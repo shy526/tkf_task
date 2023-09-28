@@ -66,14 +66,10 @@ public class App {
                 }
                 for (File item : calzzFile) {
                     String absolutePath = item.getAbsolutePath();
-                    System.out.println("item = " + item.getAbsolutePath());
                     String locationPath = location.getPath();
                     locationPath = osName.contains("windows") ? locationPath.substring(1) : locationPath;
-                    System.out.println("location.getPath()=" + location.getPath());
                     String classPath = absolutePath.replaceAll("(\\\\|/)", "/").replace(locationPath, "");
-                    System.out.println("classPath = " + classPath);
                     String className = classPath.substring(0, classPath.lastIndexOf(".")).replaceAll("/", ".");
-                    System.out.println("className = " + className);
                     try {
                         Class<?> aClass = Class.forName(className);
                         if (!aClass.isInterface() && Task.class.isAssignableFrom(aClass)) {
