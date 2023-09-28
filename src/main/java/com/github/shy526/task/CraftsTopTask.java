@@ -19,6 +19,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class CraftsTopTask implements Task {
@@ -61,19 +62,19 @@ public class CraftsTopTask implements Task {
                         totalBuyPrice = totalBuyPrice.add(buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount)));
                     }
                     BigDecimal profit = totalCellPrice.subtract(totalBuyPrice);
-                    if (BigDecimal.ZERO.compareTo(profit)>=0){
+                    if (BigDecimal.ZERO.compareTo(profit) >= 0) {
                         continue;
                     }
                     Long craftTime = recipe.getCraftTime();
-                    BigDecimal timeProfit=profit.divide(BigDecimal.valueOf(craftTime/60f/60),2, RoundingMode.HALF_UP);
+                    BigDecimal timeProfit = profit.divide(BigDecimal.valueOf(craftTime / 60f / 60), 2, RoundingMode.HALF_UP);
                     recipe.setTimeProfit(timeProfit);
                     recipe.setProfit(profit);
-                    System.out.println(recipe.getUid()+":"+profit+"    "+timeProfit+"/h" +"  "+craftTime/60f/60) ;
+                    System.out.println(recipe.getUid() + ":" + profit + "    " + timeProfit + "/h" + "  " + craftTime / 60f / 60);
                 }
-                resultMap.put(item.getKey()+"-"+lvItems,lvItems.getValue());
+                resultMap.put(item.getKey() + "-" + lvItems, lvItems.getValue());
             }
         }
-        System.out.println(System.currentTimeMillis()-l) ;
+        System.out.println(System.currentTimeMillis() - l);
         System.out.println("resultMap = " + resultMap);
     }
 
@@ -86,10 +87,18 @@ public class CraftsTopTask implements Task {
         HttpClientService httpClientService = HttpHelp.getInstance();
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
         System.out.println("url = " + url);
-        HttpResult httpResult1 = httpClientService.get(url);
-        System.out.println("getHttpStatus = " + httpResult1.getHttpStatus());
-        System.out.println("getEntityStr = " + httpResult1.getEntityStr());
-        JSONObject jsonObject = JSON.parseObject(httpResult1.getEntityStr());
+        HttpResult httpResult = httpClientService.get(url);
+        Integer httpStatus = httpResult.getHttpStatus();
+        if (httpStatus.equals(429)) {
+            try {
+                TimeUnit.SECONDS.sleep(1);
+                getItem(search, uid);
+            } catch (InterruptedException e) {
+            }
+        }
+        System.out.println("getHttpStatus = " +httpStatus);
+
+        JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
         JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
         return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
     }
