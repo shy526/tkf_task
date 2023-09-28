@@ -87,6 +87,7 @@ public class CraftsTopTask implements Task {
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
         System.out.println("url = " + url);
         HttpResult httpResult1 = httpClientService.get(url);
+        System.out.println("getHttpStatus = " + httpResult1.getHttpStatus());
         System.out.println("getEntityStr = " + httpResult1.getEntityStr());
         JSONObject jsonObject = JSON.parseObject(httpResult1.getEntityStr());
         JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
