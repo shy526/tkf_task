@@ -88,6 +88,7 @@ public class CraftsTopTask implements Task {
         System.out.println("url = " + url);
         HttpResult httpResult1 = httpClientService.get(url);
         JSONObject jsonObject = JSON.parseObject(httpResult1.getEntityStr());
+        System.out.println("jsonObject = " + jsonObject.toJSONString());
         JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
         return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
     }
