@@ -7,8 +7,6 @@ import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpHelp;
 import com.github.shy526.http.HttpResult;
 import lombok.Data;
-import lombok.extern.java.Log;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.net.URLCodec;
 
@@ -80,10 +78,10 @@ public class CraftsTopTask implements Task {
 
 
     private JSONObject getItemInfoByUid(String uid) {
-        return getItem(uid, uid);
+        return getItem(uid, uid, 3);
     }
 
-    private JSONObject getItem(String search, String uid) {
+    private JSONObject getItem(String search, String uid, Integer count) {
         HttpClientService httpClientService = HttpHelp.getInstance();
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
         System.out.println("url = " + url);
@@ -91,13 +89,17 @@ public class CraftsTopTask implements Task {
         Integer httpStatus = httpResult.getHttpStatus();
         if (httpStatus.equals(429)) {
             try {
+                count--;
+                if (count <= 0) {
+                    System.out.println(url + ":" + httpStatus);
+                    return null;
+                }
                 TimeUnit.SECONDS.sleep(1);
-                getItem(search, uid);
-            } catch (InterruptedException e) {
+                getItem(search, uid, count);
+
+            } catch (Exception ignored) {
             }
         }
-        System.out.println("getHttpStatus = " +httpStatus);
-
         JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
         JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
         return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
