@@ -12,6 +12,7 @@ import org.apache.commons.codec.net.URLCodec;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,10 @@ public class CraftsTopTask implements Task {
                         totalBuyPrice = totalBuyPrice.add(buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount)));
                     }
                     BigDecimal profit = totalCellPrice.subtract(totalBuyPrice);
+                    Long craftTime = recipe.getCraftTime();
+                    BigDecimal timeProfit=profit.divide(BigDecimal.valueOf(craftTime),2, RoundingMode.HALF_UP);
+                    recipe.setTimeProfit(timeProfit);
+                    recipe.setProfit(profit);
                 }
             }
         }
@@ -95,6 +100,9 @@ public class CraftsTopTask implements Task {
 
         private List<Item> input;
         private Item output;
+
+        private BigDecimal profit;
+        private BigDecimal TimeProfit;
     }
 
     @Data
