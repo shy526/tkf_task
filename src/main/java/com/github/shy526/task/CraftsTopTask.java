@@ -84,7 +84,6 @@ public class CraftsTopTask implements Task {
     private JSONObject getItem(String search, String uid, Integer count) {
         HttpClientService httpClientService = HttpHelp.getInstance();
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
-        System.out.println("url = " + url);
         HttpResult httpResult = httpClientService.get(url);
         Integer httpStatus = httpResult.getHttpStatus();
         if (httpStatus.equals(429)) {
