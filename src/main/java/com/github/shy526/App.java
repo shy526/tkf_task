@@ -64,8 +64,10 @@ public class App {
                     return;
                 }
                 for (File item : calzzFile) {
+                    String absolutePath = item.getAbsolutePath();
                     System.out.println("item = " + item.getAbsolutePath());
-                    String classPath = item.getAbsolutePath().replaceAll("\\\\", "/").replace(location.getPath().substring(1), "");
+                    System.out.println("location.getPath()=" + location.getPath());
+                    String classPath =absolutePath.replaceAll("(\\\\|/)", "/").replace(location.getPath().substring(1), "");
                     System.out.println("classPath = " + classPath);
                     String className = classPath.substring(0, classPath.lastIndexOf(".")).replaceAll("/", ".");
                     System.out.println("className = " + className);
