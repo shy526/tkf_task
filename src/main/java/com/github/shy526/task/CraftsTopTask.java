@@ -7,6 +7,8 @@ import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpHelp;
 import com.github.shy526.http.HttpResult;
 import lombok.Data;
+import lombok.extern.java.Log;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.net.URLCodec;
 
@@ -14,10 +16,10 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 
 public class CraftsTopTask implements Task {
 
@@ -27,20 +29,24 @@ public class CraftsTopTask implements Task {
 
     @Override
     public void run() {
+        long l = System.currentTimeMillis();
         HttpClientService httpClientService = HttpHelp.getInstance();
         HttpResult httpResult = httpClientService.get(GET_RECIPES_URL_FORMAT);
         String entityStr = httpResult.getEntityStr();
         JSONObject result = JSON.parseObject(entityStr);
         String recipesStr = deCodeString(result, "recipes");
         List<Recipe> recipes = JSON.parseArray(recipesStr, Recipe.class);
+        //按设施分组
         Map<String, List<Recipe>> facilityGroup = recipes.stream().collect(Collectors.groupingBy(Recipe::getFacility));
+        HashMap<String, List<Recipe>> resultMap = new HashMap<>();
         for (Map.Entry<String, List<Recipe>> item : facilityGroup.entrySet()) {
             List<Recipe> facility = item.getValue();
+            //按等级分组
             Map<Integer, List<Recipe>> facilityLvGroup = facility.stream().collect(Collectors.groupingBy(Recipe::getLevel));
             for (Map.Entry<Integer, List<Recipe>> lvItems : facilityLvGroup.entrySet()) {
                 for (Recipe recipe : lvItems.getValue()) {
                     Item output = recipe.getOutput();
-                    JSONObject outItem = getItemInfo(output.getUid());
+                    JSONObject outItem = getItemInfoByUid(output.getUid());
                     List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
                     Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
                     BigDecimal totalCellPrice = sellMaxPrice.getPrice().multiply(BigDecimal.valueOf(output.amount));
@@ -49,25 +55,31 @@ public class CraftsTopTask implements Task {
                     price.setType(sellMaxPrice.getType());
                     BigDecimal totalBuyPrice = BigDecimal.ZERO;
                     for (Item input : recipe.getInput()) {
-                        JSONObject inItem = getItemInfo(input.getUid());
+                        JSONObject inItem = getItemInfoByUid(input.getUid());
                         List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
                         Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
                         totalBuyPrice = totalBuyPrice.add(buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount)));
                     }
                     BigDecimal profit = totalCellPrice.subtract(totalBuyPrice);
+                    if (BigDecimal.ZERO.compareTo(profit)>=0){
+                        continue;
+                    }
                     Long craftTime = recipe.getCraftTime();
-                    BigDecimal timeProfit=profit.divide(BigDecimal.valueOf(craftTime),2, RoundingMode.HALF_UP);
+                    BigDecimal timeProfit=profit.divide(BigDecimal.valueOf(craftTime/60f/60),2, RoundingMode.HALF_UP);
                     recipe.setTimeProfit(timeProfit);
                     recipe.setProfit(profit);
+                    System.out.println(recipe.getUid()+":"+profit+"    "+timeProfit+"/h" +"  "+craftTime/60f/60) ;
                 }
+                resultMap.put(item.getKey()+"-"+lvItems,lvItems.getValue());
             }
         }
+        System.out.println(System.currentTimeMillis()-l) ;
+        System.out.println("resultMap = " + resultMap);
     }
 
 
-    private JSONObject getItemInfo(String uid) {
-        JSONObject item = getItem(uid, uid);
-        return getItem(item.getString("name"), uid);
+    private JSONObject getItemInfoByUid(String uid) {
+        return getItem(uid, uid);
     }
 
     private JSONObject getItem(String search, String uid) {
