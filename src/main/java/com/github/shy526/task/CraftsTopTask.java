@@ -146,7 +146,7 @@ public class CraftsTopTask implements Task {
     private void fullItemInfo(Item temp) {
         JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
         if (o.isEmpty()) {
-            o = getItem(temp.getName(), temp.getUid(), 4, 20);
+            o = getItem(temp.getName(), temp.getUid(), 6, 20);
         }
         temp.setCnName(o.getString("cnName"));
         temp.setImg(o.getString("wikiIcon"));
@@ -154,7 +154,7 @@ public class CraftsTopTask implements Task {
 
 
     private JSONObject getItemInfoBy(String search, String uid) {
-        return getItem(search, uid, 4, 0);
+        return getItem(search, uid, 6, 0);
     }
 
     private JSONObject getItem(String search, String uid, Integer count, Integer skip) {
