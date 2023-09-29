@@ -8,7 +8,6 @@ import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpResult;
 import com.github.shy526.service.GithubRestService;
 import com.github.shy526.service.GithubRestServiceImpl;
-import com.github.shy526.vo.GithubVo;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
@@ -34,9 +33,7 @@ public class CraftsTopTask implements Task {
     @Override
     public void run() {
         long l = System.currentTimeMillis();
-        HttpResult httpResult = httpClientService.get(GET_RECIPES_URL_FORMAT);
-        String entityStr = httpResult.getEntityStr();
-        JSONObject result = JSON.parseObject(entityStr);
+        JSONObject result = httpGetJsonObject(GET_RECIPES_URL_FORMAT);
         String recipesStr = deCodeString(result, "recipes");
         List<Recipe> recipes = JSON.parseArray(recipesStr, Recipe.class);
         //按设施分组
@@ -96,6 +93,16 @@ public class CraftsTopTask implements Task {
 
     }
 
+    private JSONObject httpGetJsonObject(String url) {
+        JSONObject result = null;
+        try (HttpResult httpResult = httpClientService.get(url)) {
+            String entityStr = httpResult.getEntityStr();
+            result = JSON.parseObject(entityStr);
+        } catch (Exception ignored) {
+        }
+        return result;
+    }
+
     private void fullItemInfo(Item temp) {
         JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
         temp.setCnName(o.getString("cnName"));
@@ -109,23 +116,26 @@ public class CraftsTopTask implements Task {
 
     private JSONObject getItem(String search, String uid, Integer count) {
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
-        HttpResult httpResult = httpClientService.get(url);
-        Integer httpStatus = httpResult.getHttpStatus();
-        if (httpStatus.equals(429)) {
-            try {
-                count--;
-                if (count <= 0) {
-                    return null;
-                }
-                TimeUnit.SECONDS.sleep(5);
-                return getItem(search, uid, count);
+        try (HttpResult httpResult = httpClientService.get(url)) {
+            Integer httpStatus = httpResult.getHttpStatus();
+            if (httpStatus.equals(429)) {
+                try {
+                    count--;
+                    if (count <= 0) {
+                        return null;
+                    }
+                    TimeUnit.SECONDS.sleep(5);
+                    return getItem(search, uid, count);
 
-            } catch (Exception ignored) {
+                } catch (Exception ignored) {
+                }
             }
+            JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
+            JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
+            return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
+        } catch (Exception ignored) {
+            return null;
         }
-        JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
-        JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
-        return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
     }
 
     public String deCodeString(JSONObject obj, String fieldName) {
