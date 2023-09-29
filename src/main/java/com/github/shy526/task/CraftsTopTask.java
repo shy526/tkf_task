@@ -3,11 +3,15 @@ package com.github.shy526.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.github.shy526.MarkdownBuild;
+import com.github.shy526.config.Config;
 import com.github.shy526.config.Context;
 import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpResult;
 import com.github.shy526.service.GithubRestService;
 import com.github.shy526.service.GithubRestServiceImpl;
+import com.github.shy526.vo.Committer;
+import com.github.shy526.vo.GithubVo;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
@@ -16,10 +20,7 @@ import org.apache.commons.codec.net.URLCodec;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -44,7 +45,9 @@ public class CraftsTopTask implements Task {
             //按等级分组
             Map<Integer, List<Recipe>> facilityLvGroup = facility.stream().collect(Collectors.groupingBy(Recipe::getLevel));
             for (Map.Entry<Integer, List<Recipe>> lvItems : facilityLvGroup.entrySet()) {
-                for (Recipe recipe : lvItems.getValue()) {
+                Iterator<Recipe> iterator = lvItems.getValue().iterator();
+                while (iterator.hasNext()) {
+                    Recipe recipe = iterator.next();
                     //region 产出获取
                     Item output = recipe.getOutput();
                     JSONObject outItem = getItemInfoBy(output.getUid(), output.getUid());
@@ -71,6 +74,7 @@ public class CraftsTopTask implements Task {
                     }
                     BigDecimal profit = totalSellPrice.subtract(totalBuyPrice);
                     if (BigDecimal.ZERO.compareTo(profit) >= 0) {
+                        iterator.remove();
                         continue;
                     }
                     fullItemInfo(output);
@@ -84,13 +88,48 @@ public class CraftsTopTask implements Task {
                     recipe.setSellPrice(totalSellPrice);
                     recipe.setBuyPrice(totalBuyPrice);
                 }
-                resultMap.put(item.getKey() + "-" + lvItems, lvItems.getValue());
+                resultMap.put(item.getKey() + "-" + lvItems.getKey(), lvItems.getValue());
             }
         }
-/*        GithubVo githubVo = new GithubVo();
-        githubRestService.createOrUpdateFile(githubVo);*/
-        log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
 
+
+        MarkdownBuild markdownBuild = new MarkdownBuild();
+        for (Map.Entry<String, List<Recipe>> item : resultMap.entrySet()) {
+            String key = item.getKey();
+            markdownBuild.addTitle(key, 1);
+            markdownBuild.addTableHeader("设施", "配方", "产出", "成本", "收益", "收益/h");
+            for (Recipe recipe : item.getValue()) {
+                StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
+                StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild);
+                markdownBuild.addTableBodyRow(recipe.getFacility(), inSb.toString(), outSb.toString(),
+                        recipe.getSellPrice().toString(), recipe.getProfit().toString(), recipe.getTimeProfit().toString());
+            }
+        }
+        GithubVo githubVo = new GithubVo();
+        Config config = Context.getInstance(Config.class);
+        githubVo.setRepo(config.getRepo());
+        githubVo.setOwner(config.getOwner());
+        githubVo.setMessage("update");
+        githubVo.setContent(markdownBuild.build());
+        Committer committer = new Committer();
+        committer.setName("githubAction");
+        committer.setName("githubAction@outloo.com");
+        githubVo.setCommitter(committer);
+        githubVo.setPath("README.md");
+        githubRestService.createOrUpdateFile(githubVo);
+        log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
+    }
+
+    private static StringBuilder getImgTextMarkdown(List<Item> items, MarkdownBuild markdownBuild) {
+        StringBuilder result = new StringBuilder();
+        for (Item item : items) {
+            String cnName = item.getCnName();
+            Integer amount = item.getAmount();
+            Price totalPrice = item.getTotalPrice();
+            String img = item.getImg();
+            result.append(markdownBuild.buildImgTextStyle(img, cnName, "X" + amount + "(" + totalPrice.getPrice() + ")"));
+        }
+        return result;
     }
 
     private JSONObject httpGetJsonObject(String url) {
@@ -105,8 +144,8 @@ public class CraftsTopTask implements Task {
 
     private void fullItemInfo(Item temp) {
         JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
-        if (o.isEmpty()){
-             o = getItem(temp.getName(), temp.getUid(), 4,20);
+        if (o.isEmpty()) {
+            o = getItem(temp.getName(), temp.getUid(), 4, 20);
         }
         temp.setCnName(o.getString("cnName"));
         temp.setImg(o.getString("wikiIcon"));
@@ -114,11 +153,11 @@ public class CraftsTopTask implements Task {
 
 
     private JSONObject getItemInfoBy(String search, String uid) {
-        return getItem(search, uid, 4,0);
+        return getItem(search, uid, 4, 0);
     }
 
-    private JSONObject getItem(String search, String uid, Integer count,Integer skip) {
-        String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())),skip.toString());
+    private JSONObject getItem(String search, String uid, Integer count, Integer skip) {
+        String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())), skip.toString());
         JSONObject result = new JSONObject();
         try (HttpResult httpResult = httpClientService.get(url)) {
             Integer httpStatus = httpResult.getHttpStatus();
@@ -129,14 +168,14 @@ public class CraftsTopTask implements Task {
                         return null;
                     }
                     TimeUnit.SECONDS.sleep(5);
-                    result= getItem(search, uid, count,skip);
+                    result = getItem(search, uid, count, skip);
 
                 } catch (Exception ignored) {
                 }
             }
             JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
             JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
-            result= (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
+            result = (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
         } catch (Exception ignored) {
         }
         return result;
@@ -177,7 +216,6 @@ public class CraftsTopTask implements Task {
         private String cnName;
         private Price totalPrice;
         private String img;
-
     }
 
     @Data

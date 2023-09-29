@@ -71,20 +71,4 @@ public class GithubRestServiceImpl implements GithubRestService {
         }
         return new JSONObject();
     }
-
-    public static void main(String[] args) {
-        GithubRestServiceImpl githubRestService = new GithubRestServiceImpl();
-        GithubVo githubVo = new GithubVo();
-        githubVo.setOwner("shy526");
-        githubVo.setRepo("tkf_task");
-        githubVo.setPath("README5.md");
-        githubVo.setMessage("update");
-        githubVo.setContent(Base64.encodeBase64String("测试".getBytes()));
-        Committer committer = new Committer();
-        committer.setName("shy526");
-        committer.setEmail("sundada214@outlook.com");
-        githubRestService.createOrUpdateFile(githubVo);
-        //JSONObject content = githubRestService.getContent(githubVo);
-        System.out.println("content = ");
-    }
 }
