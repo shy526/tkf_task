@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class CraftsTopTask implements Task {
-    private final static String GET_ITEM_URL_FORMAT = "https://tarkov-market.com/api/be/items?lang=cn&search=%s&tag=&sort=change24&sort_direction=desc&trader=&skip=0&limit=20";
+    private final static String GET_ITEM_URL_FORMAT = "https://tarkov-market.com/api/be/items?lang=cn&search=%s&tag=&sort=change24&sort_direction=desc&trader=&skip=%s";
     private final static String GET_RECIPES_URL_FORMAT = "https://tarkov-market.com/api/be/hideout";
     HttpClientService httpClientService = Context.getInstance(HttpClientService.class);
     GithubRestService githubRestService = Context.getInstance(GithubRestServiceImpl.class);
@@ -105,17 +105,21 @@ public class CraftsTopTask implements Task {
 
     private void fullItemInfo(Item temp) {
         JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
+        if (o.isEmpty()){
+             o = getItem(temp.getName(), temp.getUid(), 4,20);
+        }
         temp.setCnName(o.getString("cnName"));
         temp.setImg(o.getString("wikiIcon"));
     }
 
 
     private JSONObject getItemInfoBy(String search, String uid) {
-        return getItem(search, uid, 4);
+        return getItem(search, uid, 4,0);
     }
 
-    private JSONObject getItem(String search, String uid, Integer count) {
-        String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
+    private JSONObject getItem(String search, String uid, Integer count,Integer skip) {
+        String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())),skip.toString());
+        JSONObject result = new JSONObject();
         try (HttpResult httpResult = httpClientService.get(url)) {
             Integer httpStatus = httpResult.getHttpStatus();
             if (httpStatus.equals(429)) {
@@ -125,17 +129,17 @@ public class CraftsTopTask implements Task {
                         return null;
                     }
                     TimeUnit.SECONDS.sleep(5);
-                    return getItem(search, uid, count);
+                    result= getItem(search, uid, count,skip);
 
                 } catch (Exception ignored) {
                 }
             }
             JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
             JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
-            return (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
+            result= (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
         } catch (Exception ignored) {
-            return null;
         }
+        return result;
     }
 
     public String deCodeString(JSONObject obj, String fieldName) {
