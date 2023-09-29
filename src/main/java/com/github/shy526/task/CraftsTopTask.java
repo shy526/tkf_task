@@ -20,6 +20,7 @@ import org.apache.commons.codec.net.URLCodec;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -94,9 +95,10 @@ public class CraftsTopTask implements Task {
 
 
         MarkdownBuild markdownBuild = new MarkdownBuild();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("-yyyy-MM-dd HH:mm:ss");
         for (Map.Entry<String, List<Recipe>> item : resultMap.entrySet()) {
             String key = item.getKey();
-            markdownBuild.addTitle(key, 1);
+            markdownBuild.addTitle(key+simpleDateFormat.format(new Date()), 1);
             markdownBuild.addTableHeader("设施", "配方", "产出", "成本", "收益", "收益/h");
             for (Recipe recipe : item.getValue()) {
                 StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
@@ -113,7 +115,7 @@ public class CraftsTopTask implements Task {
         githubVo.setContent(markdownBuild.build());
         Committer committer = new Committer();
         committer.setName("githubAction");
-        committer.setName("githubAction@outloo.com");
+        committer.setEmail("githubAction@outloo.com");
         githubVo.setCommitter(committer);
         githubVo.setPath("README.md");
         JSONObject orUpdateFile = githubRestService.createOrUpdateFile(githubVo);

@@ -38,7 +38,7 @@ public class GithubRestServiceImpl implements GithubRestService {
 
     @Override
     public JSONObject createOrUpdateFile(GithubVo vo) {
-        if (HEADER.containsKey("Authorization")) {
+        if (!HEADER.containsKey("Authorization")) {
             log.error("github_api_token is null");
             return new JSONObject();
         }
