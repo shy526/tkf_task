@@ -115,10 +115,9 @@ public class CraftsTopTask implements Task {
             try {
                 count--;
                 if (count <= 0) {
-                    System.out.println(url + ":" + httpStatus);
                     return null;
                 }
-                TimeUnit.SECONDS.sleep(3);
+                TimeUnit.SECONDS.sleep(5);
                 getItem(search, uid, count);
 
             } catch (Exception ignored) {
