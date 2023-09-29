@@ -16,4 +16,8 @@ jobs:
         distribution: 'temurin'
         cache: maven
     - name: Build with Maven
+      env:
+        OWNER: ${{secrets.OWNER}}
+        REPO: ${{secrets.REPO}}
+        MY_GITHUB_API_TOKEN: ${{secrets.MY_GITHUB_API_TOKEN}}
       run: mvn -B package --file pom.xml
