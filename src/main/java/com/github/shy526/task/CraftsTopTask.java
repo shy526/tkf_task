@@ -3,10 +3,14 @@ package com.github.shy526.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.github.shy526.config.Context;
 import com.github.shy526.http.HttpClientService;
-import com.github.shy526.http.HttpHelp;
 import com.github.shy526.http.HttpResult;
+import com.github.shy526.service.GithubRestService;
+import com.github.shy526.service.GithubRestServiceImpl;
+import com.github.shy526.vo.GithubVo;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.net.URLCodec;
 
@@ -20,16 +24,16 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class CraftsTopTask implements Task {
-
     private final static String GET_ITEM_URL_FORMAT = "https://tarkov-market.com/api/be/items?lang=cn&search=%s&tag=&sort=change24&sort_direction=desc&trader=&skip=0&limit=20";
     private final static String GET_RECIPES_URL_FORMAT = "https://tarkov-market.com/api/be/hideout";
-
+    HttpClientService httpClientService = Context.getInstance(HttpClientService.class);
+    GithubRestService githubRestService = Context.getInstance(GithubRestServiceImpl.class);
 
     @Override
     public void run() {
         long l = System.currentTimeMillis();
-        HttpClientService httpClientService = HttpHelp.getInstance();
         HttpResult httpResult = httpClientService.get(GET_RECIPES_URL_FORMAT);
         String entityStr = httpResult.getEntityStr();
         JSONObject result = JSON.parseObject(entityStr);
@@ -44,47 +48,67 @@ public class CraftsTopTask implements Task {
             Map<Integer, List<Recipe>> facilityLvGroup = facility.stream().collect(Collectors.groupingBy(Recipe::getLevel));
             for (Map.Entry<Integer, List<Recipe>> lvItems : facilityLvGroup.entrySet()) {
                 for (Recipe recipe : lvItems.getValue()) {
+                    //region 产出获取
                     Item output = recipe.getOutput();
-                    JSONObject outItem = getItemInfoByUid(output.getUid());
+                    JSONObject outItem = getItemInfoBy(output.getUid(), output.getUid());
+                    output.setName(outItem.getString("name"));
                     List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
                     Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
-                    BigDecimal totalCellPrice = sellMaxPrice.getPrice().multiply(BigDecimal.valueOf(output.amount));
+                    BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(BigDecimal.valueOf(output.amount));
                     Price price = new Price();
-                    price.setPrice(totalCellPrice);
+                    price.setPrice(totalSellPrice);
                     price.setType(sellMaxPrice.getType());
+                    output.setTotalPrice(price);
+                    //endregion
                     BigDecimal totalBuyPrice = BigDecimal.ZERO;
+                    //配方
                     for (Item input : recipe.getInput()) {
-                        JSONObject inItem = getItemInfoByUid(input.getUid());
+                        JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
+                        input.setName(inItem.getString("name"));
                         List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
                         Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
-                        totalBuyPrice = totalBuyPrice.add(buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount)));
+                        BigDecimal temp = buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount));
+                        totalBuyPrice = totalBuyPrice.add(temp);
+                        buyMinPrice.setPrice(temp);
+                        input.setTotalPrice(buyMinPrice);
                     }
-                    BigDecimal profit = totalCellPrice.subtract(totalBuyPrice);
+                    BigDecimal profit = totalSellPrice.subtract(totalBuyPrice);
                     if (BigDecimal.ZERO.compareTo(profit) >= 0) {
                         continue;
+                    }
+                    fullItemInfo(output);
+                    for (Item input : recipe.getInput()) {
+                        fullItemInfo(input);
                     }
                     Long craftTime = recipe.getCraftTime();
                     BigDecimal timeProfit = profit.divide(BigDecimal.valueOf(craftTime / 60f / 60), 2, RoundingMode.HALF_UP);
                     recipe.setTimeProfit(timeProfit);
                     recipe.setProfit(profit);
-                    System.out.println(recipe.getUid() + ":" + profit + "    " + timeProfit + "/h" + "  " + craftTime / 60f / 60);
+                    recipe.setSellPrice(totalSellPrice);
+                    recipe.setBuyPrice(totalBuyPrice);
                 }
                 resultMap.put(item.getKey() + "-" + lvItems, lvItems.getValue());
             }
         }
-        System.out.println(System.currentTimeMillis() - l);
-        System.out.println("resultMap = " + resultMap);
+/*        GithubVo githubVo = new GithubVo();
+        githubRestService.createOrUpdateFile(githubVo);*/
+        log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
+
+    }
+
+    private void fullItemInfo(Item temp) {
+        JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
+        temp.setCnName(o.getString("cnName"));
+        temp.setImg(o.getString("wikiIcon"));
     }
 
 
-    private JSONObject getItemInfoByUid(String uid) {
-        return getItem(uid, uid, 3);
+    private JSONObject getItemInfoBy(String search, String uid) {
+        return getItem(search, uid, 4);
     }
 
     private JSONObject getItem(String search, String uid, Integer count) {
-        HttpClientService httpClientService = HttpHelp.getInstance();
         String url = String.format(GET_ITEM_URL_FORMAT, new String(URLCodec.encodeUrl(null, search.getBytes())));
-        System.out.println("url = " + url);
         HttpResult httpResult = httpClientService.get(url);
         Integer httpStatus = httpResult.getHttpStatus();
         if (httpStatus.equals(429)) {
@@ -121,12 +145,11 @@ public class CraftsTopTask implements Task {
         private String type;
         private Integer level;
         private Long craftTime;
-
         private String facility;
-
         private List<Item> input;
         private Item output;
-
+        private BigDecimal buyPrice;
+        private BigDecimal sellPrice;
         private BigDecimal profit;
         private BigDecimal TimeProfit;
     }
@@ -137,6 +160,10 @@ public class CraftsTopTask implements Task {
         private String uid;
         private String type;
         private Integer amount;
+        private String name;
+        private String cnName;
+        private Price totalPrice;
+        private String img;
 
     }
 
