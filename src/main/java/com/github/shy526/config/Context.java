@@ -15,16 +15,17 @@ public class Context {
     private final static JSONObject context = new JSONObject();
 
     static {
+        Config config = new Config();
+        log.info("config load :{}",JSONObject.toJSONString(config));
+        setContext(config);
         HttpClientProperties httpClientProperties = new HttpClientProperties();
         httpClientProperties.setAutomaticRetries(false);
         Map<String, String> header = new HashMap<>();
         header.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36 Edg/117.0.2045.43");
         httpClientProperties.setHeader(header);
-        setContext(new GithubRestServiceImpl());
         setContext(HttpClientFactory.getHttpClientService(httpClientProperties));
-        Config config = new Config();
-        log.info("config load :{}",JSONObject.toJSONString(config));
-        setContext(config);
+        setContext(new GithubRestServiceImpl());
+
     }
 
     private static void setContext(Object temp) {

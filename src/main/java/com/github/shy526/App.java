@@ -1,5 +1,6 @@
 package com.github.shy526;
 
+import com.github.shy526.task.CraftsTopTask;
 import com.github.shy526.task.Task;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +23,9 @@ import java.util.stream.Collectors;
  */
 public class App {
     public static void main(String[] args) {
+        CraftsTopTask craftsTopTask = new CraftsTopTask();
+        System.out.println("craftsTopTask = " + craftsTopTask);
+
         Package aPackage = App.class.getPackage();
         String packagePath = aPackage.getName().replace(".", "/");
         URL location = App.class.getProtectionDomain().getCodeSource().getLocation();
@@ -80,7 +84,6 @@ public class App {
                     }
                 }
             });
-
             for (Task task : tasks) {
                 task.run();
             }

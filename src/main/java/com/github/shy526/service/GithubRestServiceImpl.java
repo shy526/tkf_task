@@ -21,8 +21,6 @@ import java.util.Map;
 @Slf4j
 public class GithubRestServiceImpl implements GithubRestService {
     private static final HttpClientService httpClientService = Context.getInstance(HttpClientService.class);
-
-
     private static final String CREATE_UPDATE_PATH = "/repos/%s/%s/contents/%s";
     private static final String GITHUB_HOST = "https://api.github.com%s";
     private static final Map<String, String> HEADER = new HashMap<>();
@@ -32,7 +30,6 @@ public class GithubRestServiceImpl implements GithubRestService {
         String token = Context.getInstance(Config.class).getGithubApiToken();
         if (StringUtils.isEmpty(token)) {
             log.error("github_api_token is null");
-
         } else {
             HEADER.put("Authorization", "token " + token);
         }
