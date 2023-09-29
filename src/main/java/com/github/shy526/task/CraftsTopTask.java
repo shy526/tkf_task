@@ -116,7 +116,8 @@ public class CraftsTopTask implements Task {
         committer.setName("githubAction@outloo.com");
         githubVo.setCommitter(committer);
         githubVo.setPath("README.md");
-        githubRestService.createOrUpdateFile(githubVo);
+        JSONObject orUpdateFile = githubRestService.createOrUpdateFile(githubVo);
+        log.info(orUpdateFile.toJSONString());
         log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
     }
 
