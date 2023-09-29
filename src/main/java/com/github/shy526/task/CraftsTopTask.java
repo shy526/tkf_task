@@ -14,10 +14,16 @@ import com.github.shy526.vo.Committer;
 import com.github.shy526.vo.GithubVo;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.net.URLCodec;
+import org.apache.http.Header;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
-import java.io.Serializable;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
@@ -78,9 +84,9 @@ public class CraftsTopTask implements Task {
                         iterator.remove();
                         continue;
                     }
-                    fullItemInfo(output);
+                    fullItemInfo(output,0);
                     for (Item input : recipe.getInput()) {
-                        fullItemInfo(input);
+                        fullItemInfo(input,0);
                     }
                     Long craftTime = recipe.getCraftTime();
                     BigDecimal timeProfit = profit.divide(BigDecimal.valueOf(craftTime / 60f / 60), 2, RoundingMode.HALF_UP);
@@ -96,15 +102,17 @@ public class CraftsTopTask implements Task {
 
         MarkdownBuild markdownBuild = new MarkdownBuild();
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("-yyyy-MM-dd HH:mm:ss");
+        OkHttpClient okHttpClient = new OkHttpClient().newBuilder().build();
+        CsrfToken csrfToken = new CsrfToken();
         for (Map.Entry<String, List<Recipe>> item : resultMap.entrySet()) {
             String key = item.getKey();
-            markdownBuild.addTitle(key+simpleDateFormat.format(new Date()), 1);
+            markdownBuild.addTitle(key + simpleDateFormat.format(new Date()), 1);
             markdownBuild.addTableHeader("设施", "配方", "产出", "成本", "收益", "收益/h");
             for (Recipe recipe : item.getValue()) {
-                StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
-                StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild);
+                StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild, okHttpClient, csrfToken);
+                StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild, okHttpClient, csrfToken);
                 markdownBuild.addTableBodyRow(recipe.getFacility(), inSb.toString(), outSb.toString(),
-                        recipe.getSellPrice()+"₽", recipe.getProfit()+"₽", recipe.getTimeProfit()+"₽");
+                        recipe.getSellPrice() + "₽", recipe.getProfit() + "₽", recipe.getTimeProfit() + "₽");
             }
         }
         GithubVo githubVo = new GithubVo();
@@ -123,13 +131,18 @@ public class CraftsTopTask implements Task {
         log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
     }
 
-    private static StringBuilder getImgTextMarkdown(List<Item> items, MarkdownBuild markdownBuild) {
+    private StringBuilder getImgTextMarkdown(List<Item> items, MarkdownBuild markdownBuild, OkHttpClient client, CsrfToken csrfToken) {
         StringBuilder result = new StringBuilder();
         for (Item item : items) {
             String cnName = item.getCnName();
             Integer amount = item.getAmount();
             Price totalPrice = item.getTotalPrice();
-            String img = item.getImg();
+            if (item.getImg() == null) {
+                continue;
+            }
+            String img = uploadImag(item.getImg(), csrfToken, client);
+
+            System.out.println("totalPrice = " + csrfToken);
             result.append(markdownBuild.buildImgTextStyle(img, cnName, "X" + amount + "(" + totalPrice.getPrice() + "₽)"));
         }
         return result;
@@ -145,10 +158,11 @@ public class CraftsTopTask implements Task {
         return result;
     }
 
-    private void fullItemInfo(Item temp) {
-        JSONObject o = getItemInfoBy(temp.getName(), temp.getUid());
-        if (o.isEmpty()) {
-            o = getItem(temp.getName(), temp.getUid(), 6, 20);
+    private void fullItemInfo(Item temp, Integer skip) {
+        JSONObject o = getItem(temp.getName()==null?temp.getShortName():temp.getName(), temp.getUid(), 3, skip);
+        if (o.size()<=1&&!o.getBooleanValue("over")) {
+            fullItemInfo(temp, skip + 20);
+            return;
         }
         temp.setCnName(o.getString("cnName"));
         temp.setImg(o.getString("wikiIcon"));
@@ -178,6 +192,12 @@ public class CraftsTopTask implements Task {
             }
             JSONObject jsonObject = JSON.parseObject(httpResult.getEntityStr());
             JSONArray items = JSON.parseArray(deCodeString(jsonObject, "items"));
+            if (items.size() <= 0) {
+                result.put("over", true);
+                return result;
+            }else {
+                result.put("over",false);
+            }
             result = (JSONObject) items.stream().filter(item -> uid.equals(((JSONObject) item).getString("uid"))).findAny().get();
         } catch (Exception ignored) {
         }
@@ -225,5 +245,162 @@ public class CraftsTopTask implements Task {
     public static class Price {
         private String type;
         private BigDecimal price;
+    }
+
+    private String uploadImag(String imgUrl, CsrfToken csrfToken, OkHttpClient client) {
+        if (csrfToken.getCsrf() == null || csrfToken.getCsrfToken() == null) {
+            System.out.println(csrfToken.toString());
+            CsrfToken csrfToken1 = getCsrfToken();
+            csrfToken.setCsrf(csrfToken1.getCsrf());
+            csrfToken.setCsrfToken(csrfToken1.getCsrfToken());
+        }
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (HttpResult httpResult = httpClientService.get(imgUrl);
+             InputStream content = new BufferedInputStream(httpResult.getResponse().getEntity().getContent());
+        ) {
+            byte[] buffer = new byte[1024 * 4];
+            int n = 0;
+            while (-1 != (n = content.read(buffer))) {
+                output.write(buffer, 0, n);
+            }
+        } catch (Exception ignored) {
+
+        }
+        RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("uploads", "test.png",
+                        RequestBody.create(MediaType.parse("application/octet-stream"), output.toByteArray()))
+                .build();
+        Request request = new Request.Builder()
+                .url("https://picshack.net/upload")
+                .method("POST", body)
+                .addHeader("Accept", "application/json")
+                .addHeader("X-Csrf-Token", csrfToken.getCsrf())
+                .addHeader("X-Requested-With", "XMLHttpRequest")
+                .addHeader("Cache-Control", "no-cache")
+                .addHeader("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundaryR0HWSRbdM2lIae7x")
+                .addHeader("Cookie", csrfToken.getCsrfToken()).build();
+        try {
+            Response response = client.newCall(request).execute();
+            String str = response.body().string();
+            System.out.println(str);
+            str = JSONObject.parseObject(str).getJSONObject("data").getString("id");
+            imgUrl = String.format("https://picshack.net/ib/%s.png", str);
+            String header = response.header("set-cookie");
+            StringBuilder sb = new StringBuilder();
+            String[] split = header.split(";");
+            for (String kv : split) {
+                String[] kvArray = kv.split("=");
+                if (kvArray[0].equals("_session")) {
+                    sb.append(kv).append(";");
+                } else if (kvArray[0].equals("XSRF-TOKEN")) {
+                    sb.append(kv).append(";");
+                }
+            }
+            if (sb.length() > 0) {
+                System.out.println(sb.toString());
+                csrfToken.setCsrfToken(sb.toString());
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return imgUrl;
+    }
+
+
+    private CsrfToken getCsrfToken() {
+        HttpClientService instance = Context.getInstance(HttpClientService.class);
+        CsrfToken result = new CsrfToken();
+        try (HttpResult httpResult = instance.get("https://picshack.net")) {
+            CloseableHttpResponse cre = httpResult.getResponse();
+            Header[] headers = cre.getHeaders("Set-Cookie");
+            StringBuilder sb = new StringBuilder();
+            for (Header header : headers) {
+                for (String item : header.getValue().split(";")) {
+                    String[] split = item.split("=");
+                    if (split[0].equals("_session")) {
+                        sb.append(item).append(";");
+                    } else if (split[0].equals("XSRF-TOKEN")) {
+                        sb.append(item).append(";");
+                    }
+                }
+            }
+            Document doc = Jsoup.parse(httpResult.getEntityStr());
+            Elements select = doc.select("meta[name=csrf-token]");
+            String csrf = select.attr("content");
+            String csrfToken = sb.substring(0, sb.length() - 1);
+            result.setCsrf(csrf);
+            result.setCsrfToken(csrfToken);
+        } catch (Exception ignored) {
+        }
+
+
+        return result;
+    }
+
+
+    @Data
+    public static class CsrfToken {
+        private String csrf;
+        private String csrfToken;
+    }
+
+    private void xxx(CsrfToken csrfToken) {
+        csrfToken = new CsrfToken();
+        System.out.println("csrfToken = " + csrfToken);
+    }
+
+    public static void main(String[] args) {
+
+
+/*
+        HttpClientService instance = Context.getInstance(HttpClientService.class);
+        HttpResult httpResult = instance.get("https://picshack.net");
+        CloseableHttpResponse cre = httpResult.getResponse();
+        Header[] headers = cre.getHeaders("Set-Cookie");
+        StringBuilder sb = new StringBuilder();
+        for (Header header : headers) {
+            for (String item : header.getValue().split(";")) {
+                String[] split = item.split("=");
+                if (split[0].equals("_session")) {
+                    sb.append(item).append(";");
+                } else if (split[0].equals("XSRF-TOKEN")) {
+                    sb.append(item).append(";");
+                }
+            }
+        }
+        Document doc = Jsoup.parse(httpResult.getEntityStr());
+        Elements select = doc.select("meta[name=csrf-token]");
+        String csrf = select.attr("content");
+        String csrfToken = sb.substring(0, sb.length() - 1);
+
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        // 设置为浏览器兼容模式（采用模拟浏览器提交的方式）
+        builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+      //  builder.setContentType(ContentType.create("multipart/form-data"));
+        File file = new File("/C:/Users/Administrator/Pictures/QQ截图20230929165346 - 副本.png");
+        //FileBody fileBody = new FileBody(file);
+       builder.addBinaryBody("uploads", file,ContentType.create("multipart/form-data"),file.getName());
+       // builder.addPart("uploads", fileBody);
+        RequestPack produce = RequestPack.produce("https://picshack.net/upload", null, HttpPost.class);
+        HttpPost postRequest = (HttpPost) produce.getRequestBase();
+        postRequest.setEntity(builder.build());
+        postRequest.addHeader("Accept", "application/json");
+        postRequest.addHeader("X-Csrf-Token", csrf);
+        postRequest.addHeader("X-Requested-With", "XMLHttpRequest");
+        postRequest.addHeader("Cache-Control", "no-cache");
+        postRequest.addHeader("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundaryR0HWSRbdM2lIae7x");
+        postRequest.addHeader("Cookie", csrfToken);
+        HttpResult execute = instance.execute(postRequest);
+        System.out.println("execute = " + execute.getEntityStr());
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        try {
+            CloseableHttpResponse execute1 = httpClient.execute(postRequest);
+            System.out.println(EntityUtils.toString(execute1.getEntity()));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+*/
+
+
     }
 }
