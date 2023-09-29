@@ -118,7 +118,7 @@ public class CraftsTopTask implements Task {
                     return null;
                 }
                 TimeUnit.SECONDS.sleep(5);
-                getItem(search, uid, count);
+                return getItem(search, uid, count);
 
             } catch (Exception ignored) {
             }
