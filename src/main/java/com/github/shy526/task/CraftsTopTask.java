@@ -3,6 +3,7 @@ package com.github.shy526.task;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.github.shy526.MarkdownBuild;
 import com.github.shy526.config.Config;
 import com.github.shy526.config.Context;
@@ -29,19 +30,19 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 public class CraftsTopTask implements Task {
@@ -61,9 +62,10 @@ public class CraftsTopTask implements Task {
         JSONObject content = githubRestService.getContent(githubVo3);
         if (content != null) {
             String str = content.getString("content");
-            str = Base64.encodeBase64String(str.getBytes());
+            str = new String(Base64.decodeBase64(str));
             JSONObject temp = JSONObject.parseObject(str);
             if (!temp.isEmpty()) {
+                log.info("imag cache load : {}", temp.size());
                 IMG_CACHE.putAll(temp);
             }
         }
@@ -80,7 +82,7 @@ public class CraftsTopTask implements Task {
             Map<Integer, List<Recipe>> facilityLvGroup = facility.stream().collect(Collectors.groupingBy(Recipe::getLevel));
             Set<Integer> keySet = facilityLvGroup.keySet();
             List<Integer> keyList = new ArrayList<>(keySet);
-            keyList.sort(Comparator.reverseOrder());
+            keyList.sort(Integer::compareTo);
             for (Integer i : keyList) {
                 List<Recipe> recipeList = facilityLvGroup.get(i);
                 ListIterator<Recipe> recipeListIterator = recipeList.listIterator();
@@ -127,7 +129,7 @@ public class CraftsTopTask implements Task {
                     recipe.setBuyPrice(totalBuyPrice);
 
                 }
-                recipeList.sort(Comparator.comparing(Recipe::getProfit));
+                recipeList.sort((o1, o2) -> o2.getProfit().compareTo(o1.getProfit()));
                 recipeResult.addAll(recipeList);
             }
         }
@@ -136,19 +138,22 @@ public class CraftsTopTask implements Task {
         Integer lvTemp = null;
         LocalDateTime now = LocalDateTime.now();
         ZonedDateTime convertedTime = ZonedDateTime.of(now, ZoneId.of("Asia/Shanghai"));
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String formatTime = convertedTime.format(formatter);
+        markdownBuild.addTitle("塔科夫藏身处收益(不含工具,每日更新)[" + formatTime + "]",1);
+        markdownBuild.addEnter().addEnter().addEnter();
         for (Recipe recipe : recipeResult) {
             String facility = recipe.getFacility();
             Integer lv = recipe.getLevel();
             if (!facility.equals(facilityTemp)) {
                 StringBuilder sb = markdownBuild.buildImg(facility, getFacilityImg(recipe));
                 StringBuilder facilitySb = markdownBuild.buildCenterTextStyle(sb.toString());
-                markdownBuild.addTitle(facilitySb.toString(), 1);
+                markdownBuild.addTitle(facilitySb.toString(), 2).addEnter().addEnter().addEnter();
                 facilityTemp = facility;
+                lvTemp = null;
             }
             if (!lv.equals(lvTemp)) {
-                markdownBuild.addTitle("level-" + lv + "(" + formatTime + ")", 2);
+                markdownBuild.addTitle("level-" + lv , 3).addEnter().addEnter().addEnter();
                 markdownBuild.addTableHeader("配方", "产出", "成本", "收益", "收益/h");
                 lvTemp = lv;
             }
@@ -160,11 +165,11 @@ public class CraftsTopTask implements Task {
         GithubVo githubVo = buildGithubVo();
         githubVo.setContent(markdownBuild.build());
         githubVo.setPath("README.md");
-        JSONObject orUpdateFile = githubRestService.getContent(githubVo);
+        JSONObject orUpdateFile = githubRestService.createOrUpdateFile(githubVo);
 
 
         GithubVo githubVo2 = buildGithubVo();
-        githubVo2.setContent(IMG_CACHE.toJSONString());
+        githubVo2.setContent(JSON.toJSONString(IMG_CACHE, SerializerFeature.PrettyFormat));
         githubVo2.setPath("imgMap.txt");
         JSONObject orUpdateFile2 = githubRestService.createOrUpdateFile(githubVo2);
         log.info("{}->end->runTime{}ms", this.getClass().getSimpleName(), System.currentTimeMillis() - l);
@@ -190,7 +195,7 @@ public class CraftsTopTask implements Task {
      * @return String
      */
     private String getFacilityImg(Recipe recipe) {
-        return uploadImag(String.format("https://tarkov.dev/images/stations/%s-icon.png", recipe.getFacility()));
+        return uploadImag(String.format("https://tarkov.dev/images/stations/%s-icon.png", recipe.getFacility().toLowerCase().replaceAll("\\s{1}", "-")));
     }
 
     private StringBuilder getImgTextMarkdown(List<Item> items, MarkdownBuild markdownBuild) {
@@ -311,7 +316,6 @@ public class CraftsTopTask implements Task {
         private BigDecimal price;
     }
 
-    private boolean flag = false;
 
     private String uploadImag(String imgUrl) {
         String key = imgUrl.split("\\?")[0];
@@ -350,10 +354,13 @@ public class CraftsTopTask implements Task {
         postRequest.addHeader("Cookie", System.getProperty("csrfToken"));
 
         try (HttpResult execute = httpClientService.execute(produce)) {
-            imgUrl = String.format("https://picshack.net/ib/%s.png", JSONObject.parseObject(execute.getEntityStr()).getJSONObject("data").getString("id"));
+            if (execute.getHttpStatus().equals(200)) {
+                imgUrl = String.format("https://picshack.net/ib/%s.png", JSONObject.parseObject(execute.getEntityStr()).getJSONObject("data").getString("id"));
+                IMG_CACHE.put(key, imgUrl);
+            }
+
         } catch (Exception ignored) {
         }
-        IMG_CACHE.put(key, imgUrl);
         return imgUrl;
     }
 

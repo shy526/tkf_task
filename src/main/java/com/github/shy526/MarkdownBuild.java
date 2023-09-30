@@ -12,18 +12,25 @@ public class MarkdownBuild {
     private static final String TITLE_SEPARATOR = "#";
 
 
-    private static final String IMG_TEXT_FORMAT="<div align=\"center\"><img src=\"%s\" alt=\"%s\"/><br/><font>%s</font></div>";
+    private static final String IMG_TEXT_FORMAT = "<div align=\"center\"><img src=\"%s\" alt=\"%s\"/><br/><font>%s</font></div>";
 
-    private static final  String CENTER_TEXT_FORMAT= "<center>%s</center> " ;
-    private static final  String IMG_FORMAT= "![%s](%s) " ;
+    private static final String CENTER_TEXT_FORMAT = "<center>%s</center> ";
+    private static final String IMG_FORMAT = "![%s](%s) ";
 
-    public StringBuilder buildImg(String alt,String src){
-        return new StringBuilder(String.format(IMG_FORMAT,alt,src));
+    public MarkdownBuild addEnter() {
+        markdown.append(ENTER);
+        return this;
     }
-    public StringBuilder buildCenterTextStyle(String str){
-        return new StringBuilder(String.format(CENTER_TEXT_FORMAT,str));
+
+    public StringBuilder buildImg(String alt, String src) {
+        return new StringBuilder(String.format(IMG_FORMAT, alt, src));
     }
-    public StringBuilder buildImgTextStyle(String src,String alt,String text){
+
+    public StringBuilder buildCenterTextStyle(String str) {
+        return new StringBuilder(String.format(CENTER_TEXT_FORMAT, str));
+    }
+
+    public StringBuilder buildImgTextStyle(String src, String alt, String text) {
         return new StringBuilder(String.format(IMG_TEXT_FORMAT, src, alt, text));
     }
 
@@ -59,16 +66,17 @@ public class MarkdownBuild {
         return this;
     }
 
-    public String build(){
+    public String build() {
         return markdown.toString();
     }
+
     public static void main(String[] args) {
         MarkdownBuild markdownBuild = new MarkdownBuild();
         markdownBuild.addTitle("逃离塔科夫藏身处收益", 1);
         markdownBuild.addTableHeader("设施", "配方", "产出", "成本", "收益", "收益/h");
         markdownBuild.addTableBodyRow("医疗", "11+1", "xxx", "111", "22", "444");
         String build = markdownBuild.build();
-        System.out.println(  build);
+        System.out.println(build);
 
 
     }
