@@ -140,7 +140,7 @@ public class CraftsTopTask implements Task {
         ZonedDateTime convertedTime = ZonedDateTime.of(now, ZoneId.of("Asia/Shanghai"));
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String formatTime = convertedTime.format(formatter);
-        markdownBuild.addTitle("塔科夫藏身处收益(不含工具,每日更新)[" + formatTime + "]",1);
+        markdownBuild.addTitle("塔科夫藏身处收益(不含工具,每日更新)[" + formatTime + "]", 1);
         markdownBuild.addEnter().addEnter().addEnter();
         for (Recipe recipe : recipeResult) {
             String facility = recipe.getFacility();
@@ -153,7 +153,7 @@ public class CraftsTopTask implements Task {
                 lvTemp = null;
             }
             if (!lv.equals(lvTemp)) {
-                markdownBuild.addTitle("level-" + lv , 3).addEnter().addEnter().addEnter();
+                markdownBuild.addTitle("level-" + lv, 3).addEnter().addEnter().addEnter();
                 markdownBuild.addTableHeader("配方", "产出", "成本", "收益", "收益/h");
                 lvTemp = lv;
             }
