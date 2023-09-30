@@ -1,9 +1,5 @@
 package com.github.shy526;
 
-import javafx.util.Builder;
-
-import java.io.File;
-
 public class MarkdownBuild {
     private final StringBuilder markdown = new StringBuilder();
     private static final String TABLE_SEPARATOR = "|";
@@ -70,14 +66,4 @@ public class MarkdownBuild {
         return markdown.toString();
     }
 
-    public static void main(String[] args) {
-        MarkdownBuild markdownBuild = new MarkdownBuild();
-        markdownBuild.addTitle("逃离塔科夫藏身处收益", 1);
-        markdownBuild.addTableHeader("设施", "配方", "产出", "成本", "收益", "收益/h");
-        markdownBuild.addTableBodyRow("医疗", "11+1", "xxx", "111", "22", "444");
-        String build = markdownBuild.build();
-        System.out.println(build);
-
-
-    }
 }

@@ -7,7 +7,6 @@ import com.github.shy526.config.Context;
 import com.github.shy526.http.HttpClientService;
 import com.github.shy526.http.HttpResult;
 import com.github.shy526.http.RequestPack;
-import com.github.shy526.vo.Committer;
 import com.github.shy526.vo.GithubVo;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
