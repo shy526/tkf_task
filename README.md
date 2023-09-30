@@ -1,4 +1,4 @@
-# Lavatory-1-2023-09-30 08:40:00
+# Lavatory-1-2023-09-29 16:41:18
 |设施|配方|产出|成本|收益|收益/h|
 |:---:|:---:|:---:|:---:|:---:|:---:|
 |Lavatory|<div align="center"><img src="https://picshack.net/ib/MV6EoVkeJn.png" alt="PACA软防弹背心"/><br/><font>X1(26262₽)</font></div>|<div align="center"><img src="https://picshack.net/ib/EUF6mT1Bvc.png" alt="芳纶纤维布料"/><br/><font>X2(34052₽)</font></div>|34052₽|7790₽|14022.00₽|

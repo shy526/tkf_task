@@ -27,6 +27,7 @@ public class GithubRestServiceImpl implements GithubRestService {
 
     static {
         HEADER.put("Accept", "application/vnd.github+json");
+        HEADER.put("Host", "api.github.com");
         String token = Context.getInstance(Config.class).getGithubApiToken();
         if (StringUtils.isEmpty(token)) {
             log.error("github_api_token is null");
@@ -45,7 +46,7 @@ public class GithubRestServiceImpl implements GithubRestService {
         String path = String.format(CREATE_UPDATE_PATH, vo.getOwner(), vo.getRepo(), vo.getPath());
         String url = String.format(GITHUB_HOST, path);
         JSONObject old = getContent(vo);
-        if (!old.isEmpty()) {
+        if (old!=null) {
             vo.setSha(old.getString("sha"));
         }
         RequestPack produce = RequestPack.produce(url, null, HttpPut.class);

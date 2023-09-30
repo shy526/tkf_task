@@ -1,5 +1,7 @@
 package com.github.shy526;
 
+import javafx.util.Builder;
+
 import java.io.File;
 
 public class MarkdownBuild {
@@ -12,8 +14,15 @@ public class MarkdownBuild {
 
     private static final String IMG_TEXT_FORMAT="<div align=\"center\"><img src=\"%s\" alt=\"%s\"/><br/><font>%s</font></div>";
 
+    private static final  String CENTER_TEXT_FORMAT= "<center>%s</center> " ;
+    private static final  String IMG_FORMAT= "![%s](%s) " ;
 
-
+    public StringBuilder buildImg(String alt,String src){
+        return new StringBuilder(String.format(IMG_FORMAT,alt,src));
+    }
+    public StringBuilder buildCenterTextStyle(String str){
+        return new StringBuilder(String.format(CENTER_TEXT_FORMAT,str));
+    }
     public StringBuilder buildImgTextStyle(String src,String alt,String text){
         return new StringBuilder(String.format(IMG_TEXT_FORMAT, src, alt, text));
     }
