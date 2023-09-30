@@ -74,68 +74,58 @@ public class CraftsTopTask implements Task {
         List<Recipe> recipes = JSON.parseArray(recipesStr, Recipe.class);
         //按设施分组
         Map<String, List<Recipe>> facilityGroup = recipes.stream().collect(Collectors.groupingBy(Recipe::getFacility));
-        List<Recipe> recipeResult = new ArrayList<>();
-        for (Map.Entry<String, List<Recipe>> item : facilityGroup.entrySet()) {
-            List<Recipe> facility = item.getValue();
-            String key = item.getKey();
-            //按等级分组
-            Map<Integer, List<Recipe>> facilityLvGroup = facility.stream().collect(Collectors.groupingBy(Recipe::getLevel));
-            Set<Integer> keySet = facilityLvGroup.keySet();
-            List<Integer> keyList = new ArrayList<>(keySet);
-            keyList.sort(Integer::compareTo);
-            for (Integer i : keyList) {
-                List<Recipe> recipeList = facilityLvGroup.get(i);
-                ListIterator<Recipe> recipeListIterator = recipeList.listIterator();
-                while (recipeListIterator.hasNext()) {
-                    Recipe recipe = recipeListIterator.next();
-                    //region 产出获取
-                    Item output = recipe.getOutput();
-                    JSONObject outItem = getItemInfoBy(output.getUid(), output.getUid());
-                    output.setName(outItem.getString("name"));
-                    List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
-                    Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
-                    BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(output.getAmount()).setScale(2, RoundingMode.HALF_UP);
-                    Price price = new Price();
-                    price.setPrice(totalSellPrice);
-                    price.setType(sellMaxPrice.getType());
-                    output.setTotalPrice(price);
-                    //endregion
-                    BigDecimal totalBuyPrice = BigDecimal.ZERO;
-                    //配方
-                    for (Item input : recipe.getInput()) {
-                        JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
-                        input.setName(inItem.getString("name"));
-                        List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
-                        Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
-                        BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
-                        totalBuyPrice = totalBuyPrice.add(temp);
-                        buyMinPrice.setPrice(temp);
-                        input.setTotalPrice(buyMinPrice);
-                    }
-                    BigDecimal profit = totalSellPrice.subtract(totalBuyPrice);
-                    if (BigDecimal.ZERO.compareTo(profit) >= 0) {
-                        recipeListIterator.remove();
-                        continue;
-                    }
-                    fullItemInfo(output);
-                    for (Item input : recipe.getInput()) {
-                        fullItemInfo(input);
-                    }
-                    Long craftTime = recipe.getCraftTime();
-                    BigDecimal timeProfit = profit.divide(BigDecimal.valueOf(craftTime / 60f / 60), 2, RoundingMode.HALF_UP);
-                    recipe.setTimeProfit(timeProfit);
-                    recipe.setProfit(profit);
-                    recipe.setSellPrice(totalSellPrice);
-                    recipe.setBuyPrice(totalBuyPrice);
-
+        List<Recipe> recipeResult = new ArrayList<Recipe>();
+        for (Map.Entry<String, List<Recipe>> facilityEntry : facilityGroup.entrySet()) {
+            List<Recipe> facilityRecipe = facilityEntry.getValue();
+            ListIterator<Recipe> recipeListIterator = facilityRecipe.listIterator();
+            while (recipeListIterator.hasNext()) {
+                Recipe recipe = recipeListIterator.next();
+                //region 产出获取
+                Item output = recipe.getOutput();
+                JSONObject outItem = getItemInfoBy(output.getUid(), output.getUid());
+                output.setName(outItem.getString("name"));
+                List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
+                Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
+                BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(output.getAmount()).setScale(2, RoundingMode.HALF_UP);
+                Price price = new Price();
+                price.setPrice(totalSellPrice);
+                price.setType(sellMaxPrice.getType());
+                output.setTotalPrice(price);
+                //endregion
+                BigDecimal totalBuyPrice = BigDecimal.ZERO;
+                //配方
+                for (Item input : recipe.getInput()) {
+                    JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
+                    input.setName(inItem.getString("name"));
+                    List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
+                    Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
+                    BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
+                    totalBuyPrice = totalBuyPrice.add(temp);
+                    buyMinPrice.setPrice(temp);
+                    input.setTotalPrice(buyMinPrice);
                 }
-                recipeList.sort((o1, o2) -> o2.getProfit().compareTo(o1.getProfit()));
-                recipeResult.addAll(recipeList);
+                BigDecimal profit = totalSellPrice.subtract(totalBuyPrice);
+                if (BigDecimal.ZERO.compareTo(profit) >= 0) {
+                    recipeListIterator.remove();
+                    continue;
+                }
+                fullItemInfo(output);
+                for (Item input : recipe.getInput()) {
+                    fullItemInfo(input);
+                }
+                Long craftTime = recipe.getCraftTime();
+                BigDecimal timeProfit = profit.divide(BigDecimal.valueOf(craftTime / 60f / 60), 2, RoundingMode.HALF_UP);
+                recipe.setTimeProfit(timeProfit);
+                recipe.setProfit(profit);
+                recipe.setSellPrice(totalSellPrice);
+                recipe.setBuyPrice(totalBuyPrice);
+
             }
+            facilityRecipe.sort((o1, o2) -> o2.getProfit().compareTo(o1.getProfit()));
+            recipeResult.addAll(facilityRecipe);
         }
         MarkdownBuild markdownBuild = new MarkdownBuild();
         String facilityTemp = null;
-        Integer lvTemp = null;
         LocalDateTime now = LocalDateTime.now();
         ZonedDateTime convertedTime = ZonedDateTime.of(now, ZoneId.of("Asia/Shanghai"));
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -149,17 +139,12 @@ public class CraftsTopTask implements Task {
                 StringBuilder sb = markdownBuild.buildImg(facility, getFacilityImg(recipe));
                 StringBuilder facilitySb = markdownBuild.buildCenterTextStyle(sb.toString());
                 markdownBuild.addTitle(facilitySb.toString(), 2).addEnter().addEnter().addEnter();
+                markdownBuild.addTableHeader("lv", "配方", "产出", "成本", "收益", "收益/h");
                 facilityTemp = facility;
-                lvTemp = null;
-            }
-            if (!lv.equals(lvTemp)) {
-                markdownBuild.addTitle("level-" + lv, 3).addEnter().addEnter().addEnter();
-                markdownBuild.addTableHeader("配方", "产出", "成本", "收益", "收益/h");
-                lvTemp = lv;
             }
             StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
             StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild);
-            markdownBuild.addTableBodyRow(inSb.toString(), outSb.toString(),
+            markdownBuild.addTableBodyRow(recipe.getLevel().toString(), inSb.toString(), outSb.toString(),
                     recipe.getSellPrice() + "₽", recipe.getProfit() + "₽", recipe.getTimeProfit() + "₽");
         }
         GithubVo githubVo = buildGithubVo();
@@ -205,7 +190,7 @@ public class CraftsTopTask implements Task {
             BigDecimal amount = item.getAmount();
             Price totalPrice = item.getTotalPrice();
             String img = uploadImag(item.getImg());
-            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + totalPrice.getPrice() + "₽)"));
+            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" +totalPrice.getType()+" : "+totalPrice.getPrice() + "₽)"));
         }
         return result;
     }
