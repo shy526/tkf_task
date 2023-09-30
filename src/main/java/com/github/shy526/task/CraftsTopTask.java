@@ -94,7 +94,7 @@ public class CraftsTopTask implements Task {
                     output.setName(outItem.getString("name"));
                     List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
                     Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
-                    BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(BigDecimal.valueOf(output.amount));
+                    BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(output.getAmount()).setScale(2, RoundingMode.HALF_UP);
                     Price price = new Price();
                     price.setPrice(totalSellPrice);
                     price.setType(sellMaxPrice.getType());
@@ -107,7 +107,7 @@ public class CraftsTopTask implements Task {
                         input.setName(inItem.getString("name"));
                         List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
                         Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
-                        BigDecimal temp = buyMinPrice.getPrice().multiply(BigDecimal.valueOf(input.amount));
+                        BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
                         totalBuyPrice = totalBuyPrice.add(temp);
                         buyMinPrice.setPrice(temp);
                         input.setTotalPrice(buyMinPrice);
@@ -202,7 +202,7 @@ public class CraftsTopTask implements Task {
         StringBuilder result = new StringBuilder();
         for (Item item : items) {
             String uid = item.getUid();
-            Integer amount = item.getAmount();
+            BigDecimal amount = item.getAmount();
             Price totalPrice = item.getTotalPrice();
             String img = uploadImag(item.getImg());
             result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + totalPrice.getPrice() + "₽)"));
@@ -303,7 +303,7 @@ public class CraftsTopTask implements Task {
         private String shortName;
         private String uid;
         private String type;
-        private Integer amount;
+        private BigDecimal amount;
         private String name;
         private String cnName;
         private Price totalPrice;
