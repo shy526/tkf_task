@@ -145,7 +145,7 @@ public class CraftsTopTask implements Task {
             StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
             StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild);
             markdownBuild.addTableBodyRow(recipe.getLevel().toString(), inSb.toString(), outSb.toString(),
-                    recipe.getSellPrice() + "₽", recipe.getProfit() + "₽", recipe.getTimeProfit() + "₽");
+                    recipe.getBuyPrice() + "₽", recipe.getProfit() + "₽", recipe.getTimeProfit() + "₽");
         }
         GithubVo githubVo = buildGithubVo();
         githubVo.setContent(markdownBuild.build());
