@@ -1,5 +1,6 @@
 package com.github.shy526.http;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
@@ -21,6 +22,7 @@ import java.util.Map;
  *
  * @author shy526
  */
+@Slf4j
 public class HttpClientService {
     private final CloseableHttpClient httpClient;
 
@@ -200,7 +202,9 @@ public class HttpClientService {
     public HttpResult execute(HttpRequestBase requestBase) {
         HttpResult result = null;
         try {
+
             result = new HttpResult(httpClient.execute(requestBase), requestBase);
+            log.info("{}  ------>{}",requestBase.getURI().toString(),result.getHttpStatus());
         } catch (Exception e) {
             e.printStackTrace();
             throw new HttpException(e.getMessage(),e);

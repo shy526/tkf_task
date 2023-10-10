@@ -1,9 +1,7 @@
 name: Java CI with Maven
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+  schedule:
+    - cron: '0 0 * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,4 +14,8 @@ jobs:
         distribution: 'temurin'
         cache: maven
     - name: Build with Maven
+      env:
+        OWNER: ${{secrets.OWNER}}
+        REPO: ${{secrets.REPO}}
+        MY_GITHUB_API_TOKEN: ${{secrets.MY_GITHUB_API_TOKEN}}
       run: mvn -B package --file pom.xml
