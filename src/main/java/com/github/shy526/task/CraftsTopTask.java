@@ -98,7 +98,7 @@ public class CraftsTopTask implements Task {
                     JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
                     input.setName(inItem.getString("name"));
                     List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
-                    Price buyMinPrice = buyPrices.stream().min(Comparator.comparing(Price::getPrice)).get();
+                    Price buyMinPrice = buyPrices.stream().filter(item->!item.getType().equals("craft")).min(Comparator.comparing(Price::getPrice)).get();
                     BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
                     totalBuyPrice = totalBuyPrice.add(temp);
                     buyMinPrice.setPrice(temp);
@@ -144,7 +144,7 @@ public class CraftsTopTask implements Task {
             }
             StringBuilder outSb = getImgTextMarkdown(Collections.singletonList(recipe.getOutput()), markdownBuild);
             StringBuilder inSb = getImgTextMarkdown(recipe.getInput(), markdownBuild);
-            markdownBuild.addTableBodyRow(recipe.getLevel().toString(), inSb.toString(), outSb.toString(),
+            markdownBuild.addTableBodyRow(lv.toString(), inSb.toString(), outSb.toString(),
                     recipe.getBuyPrice() + "₽", recipe.getProfit() + "₽", recipe.getTimeProfit() + "₽");
         }
         GithubVo githubVo = buildGithubVo();
@@ -190,7 +190,11 @@ public class CraftsTopTask implements Task {
             BigDecimal amount = item.getAmount();
             Price totalPrice = item.getTotalPrice();
             String img = uploadImag(item.getImg());
-            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" +totalPrice.getType()+" : "+totalPrice.getPrice() + "₽)"));
+            String name="跳蚤市场";
+            if (!totalPrice.getType().equals("flea")){
+                name=totalPrice.getTrader();
+            }
+            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" +name+" : "+totalPrice.getPrice() + "₽)"));
         }
         return result;
     }
@@ -299,6 +303,8 @@ public class CraftsTopTask implements Task {
     public static class Price {
         private String type;
         private BigDecimal price;
+
+        private String trader;
     }
 
 
