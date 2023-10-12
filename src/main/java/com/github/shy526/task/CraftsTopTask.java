@@ -42,6 +42,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -95,10 +96,13 @@ public class CraftsTopTask implements Task {
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
                 for (Item input : recipe.getInput()) {
+                    if (input.getUid().equals("65000854-ffd5-461d-bcfa-d4fe62c6b854")) {
+                        System.out.println();
+                    }
                     JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
                     input.setName(inItem.getString("name"));
                     List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
-                    Price buyMinPrice = buyPrices.stream().filter(item->!item.getType().equals("craft")).min(Comparator.comparing(Price::getPrice)).get();
+                    Price buyMinPrice = buyPrices.stream().filter(item -> !item.getType().equals("craft")).min(Comparator.comparing(Price::getPrice)).orElseGet(() -> buyPrices.get(0));
                     BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
                     totalBuyPrice = totalBuyPrice.add(temp);
                     buyMinPrice.setPrice(temp);
@@ -190,11 +194,11 @@ public class CraftsTopTask implements Task {
             BigDecimal amount = item.getAmount();
             Price totalPrice = item.getTotalPrice();
             String img = uploadImag(item.getImg());
-            String name="跳蚤市场";
-            if (!totalPrice.getType().equals("flea")){
-                name=totalPrice.getTrader();
-            }
-            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" +name+" : "+totalPrice.getPrice() + "₽)"));
+            String name = totalPrice.getTrader();
+            String type = totalPrice.getType();
+            name = type.equals("flea") ? "跳蚤市场" : name;
+            name = type.equals("craft") ? "藏身处" : name;
+            result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + name + " : " + totalPrice.getPrice() + "₽)"));
         }
         return result;
     }
