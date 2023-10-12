@@ -96,9 +96,6 @@ public class CraftsTopTask implements Task {
                 price.setType(sellMaxPrice.getType());
                 price.setTrader(sellMaxPrice.getTrader());
                 output.setTotalPrice(price);
-                if (output.getUid().equals("69353123-f9ec-4755-9c86-f197af469063")) {
-                    System.out.println("price = " + price);
-                }
                 //endregion
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
@@ -106,7 +103,8 @@ public class CraftsTopTask implements Task {
                     JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
                     input.setName(inItem.getString("name"));
                     List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
-                    Price buyMinPrice = buyPrices.stream().filter(item -> !item.getType().equals("craft")).min(Comparator.comparing(Price::getPrice)).orElseGet(() -> buyPrices.get(0));
+                    Price buyMinPrice = buyPrices.stream().filter(item -> !item.getType().equals("craft"))
+                            .min(Comparator.comparing(Price::getPrice)).orElseGet(() -> buyPrices.get(0));
                     BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
                     totalBuyPrice = totalBuyPrice.add(temp);
                     buyMinPrice.setPrice(temp);
@@ -202,6 +200,7 @@ public class CraftsTopTask implements Task {
             String type = totalPrice.getType();
             name = type.equals("flea") ? "跳蚤" : name;
             name = type.equals("craft") ? "藏身处" : name;
+            name = type.equals("barter") ? "交换."+name : name;
             name = name == null ? type : name;
             result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + name + " : " + totalPrice.getPrice() + "₽)"));
         }
