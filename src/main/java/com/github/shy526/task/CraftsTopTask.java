@@ -195,6 +195,7 @@ public class CraftsTopTask implements Task {
             String type = totalPrice.getType();
             name = type.equals("flea") ? "跳蚤市场" : name;
             name = type.equals("craft") ? "藏身处" : name;
+            name = name == null ? type : name;
             result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + name + " : " + totalPrice.getPrice() + "₽)"));
         }
         return result;
