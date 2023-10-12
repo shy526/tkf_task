@@ -86,12 +86,15 @@ public class CraftsTopTask implements Task {
                 JSONObject outItem = getItemInfoBy(output.getUid(), output.getUid());
                 output.setName(outItem.getString("name"));
                 List<Price> sellPrices = JSON.parseArray(outItem.getString("sellPrices"), Price.class);
-                Price sellMaxPrice = sellPrices.stream().max(Comparator.comparing(Price::getPrice)).get();
+                Price sellMaxPrice = sellPrices.stream().filter(item->!item.getType().equals("historical")).max(Comparator.comparing(Price::getPrice)).get();
                 BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(output.getAmount()).setScale(2, RoundingMode.HALF_UP);
                 Price price = new Price();
                 price.setPrice(totalSellPrice);
                 price.setType(sellMaxPrice.getType());
                 output.setTotalPrice(price);
+                if (!sellMaxPrice.getType().equals("flea")&&sellMaxPrice.getTrader()==null){
+                    System.out.println("price = " + price);
+                }
                 //endregion
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
