@@ -91,10 +91,8 @@ public class CraftsTopTask implements Task {
                 Price price = new Price();
                 price.setPrice(totalSellPrice);
                 price.setType(sellMaxPrice.getType());
+                price.setTrader(sellMaxPrice.getTrader());
                 output.setTotalPrice(price);
-                if (!sellMaxPrice.getType().equals("flea")&&sellMaxPrice.getTrader()==null){
-                    System.out.println("price = " + price);
-                }
                 //endregion
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
@@ -196,7 +194,7 @@ public class CraftsTopTask implements Task {
             String img = uploadImag(item.getImg());
             String name = totalPrice.getTrader();
             String type = totalPrice.getType();
-            name = type.equals("flea") ? "跳蚤市场" : name;
+            name = type.equals("flea") ? "跳蚤" : name;
             name = type.equals("craft") ? "藏身处" : name;
             name = name == null ? type : name;
             result.append(markdownBuild.buildImgTextStyle(img, uid, "X" + amount + "(" + name + " : " + totalPrice.getPrice() + "₽)"));
