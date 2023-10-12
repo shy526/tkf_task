@@ -96,9 +96,6 @@ public class CraftsTopTask implements Task {
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
                 for (Item input : recipe.getInput()) {
-                    if (input.getUid().equals("65000854-ffd5-461d-bcfa-d4fe62c6b854")) {
-                        System.out.println();
-                    }
                     JSONObject inItem = getItemInfoBy(input.getUid(), input.getUid());
                     input.setName(inItem.getString("name"));
                     List<Price> buyPrices = JSON.parseArray(inItem.getString("buyPrices"), Price.class);
