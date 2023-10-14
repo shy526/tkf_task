@@ -95,7 +95,7 @@ public class CraftsTopTask implements Task {
                 price.setPrice(totalSellPrice);
                 price.setType(sellMaxPrice.getType());
                 price.setTrader(sellMaxPrice.getTrader());
-                output.setTotalPrice(price);
+                output.setTotalPrice(sellMaxPrice);
                 //endregion
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
                 //配方
