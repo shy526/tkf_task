@@ -91,10 +91,6 @@ public class CraftsTopTask implements Task {
                     return !type.equals("trader") && !type.equals("historical");
                 }).max(Comparator.comparing(Price::getPrice)).get();
                 BigDecimal totalSellPrice = sellMaxPrice.getPrice().multiply(output.getAmount()).setScale(2, RoundingMode.HALF_UP);
-                Price price = new Price();
-                price.setPrice(totalSellPrice);
-                price.setType(sellMaxPrice.getType());
-                price.setTrader(sellMaxPrice.getTrader());
                 output.setTotalPrice(sellMaxPrice);
                 //endregion
                 BigDecimal totalBuyPrice = BigDecimal.ZERO;
