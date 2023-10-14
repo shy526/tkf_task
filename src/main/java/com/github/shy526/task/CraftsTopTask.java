@@ -107,7 +107,7 @@ public class CraftsTopTask implements Task {
                             .min(Comparator.comparing(Price::getPrice)).orElseGet(() -> buyPrices.get(0));
                     BigDecimal temp = buyMinPrice.getPrice().multiply(input.getAmount()).setScale(2, RoundingMode.HALF_UP);
                     totalBuyPrice = totalBuyPrice.add(temp);
-                    buyMinPrice.setPrice(temp);
+                   // buyMinPrice.setPrice(temp);
                     input.setTotalPrice(buyMinPrice);
                 }
                 BigDecimal profit = totalSellPrice.subtract(totalBuyPrice);
